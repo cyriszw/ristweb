@@ -144,16 +144,35 @@ function ApplicationDetail({ app, onBack }: { app: any; onBack: () => void }) {
   useEffect(() => { loadDetails(); }, [loadDetails]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-  // Realtime: listen for new messages from applicant
+  // Realtime: listen for new messages from applicant (Broadcast + Postgres Changes)
   useEffect(() => {
-    const cleanup = subscribeToAdminChat(app.id, (newMsg: any) => {
+    const cleanups: (() => void)[] = [];
+
+    // Broadcast channel (works on mobile, faster)
+    const broadcastChannel = supabase.channel(`application-${app.id}`);
+    broadcastChannel
+      .on('broadcast', { event: 'message' }, (payload) => {
+        const msg = payload.payload;
+        if (msg.sender_type !== 'applicant') return;
+        setMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
+      })
+      .subscribe();
+    cleanups.push(() => { supabase.removeChannel(broadcastChannel); });
+
+    // Postgres Changes (server-authoritative, fallback)
+    const pgCleanup = subscribeToAdminChat(app.id, (newMsg: any) => {
+      if (newMsg.sender_type !== 'applicant') return;
       setMessages(prev => {
         if (prev.some(m => m.id === newMsg.id)) return prev;
         return [...prev, newMsg];
       });
-      toast(`New message from ${app.student_name}`, { icon: <MessageSquare className="w-4 h-4" /> });
     });
-    return cleanup;
+    cleanups.push(pgCleanup);
+
+    return () => { cleanups.forEach(fn => fn()); };
   }, [app.id, app.student_name]);
 
   const handleStatusChange = async () => {
@@ -201,29 +220,31 @@ function ApplicationDetail({ app, onBack }: { app: any; onBack: () => void }) {
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
+    const text = newMessage.trim();
     const optimisticId = `opt-${Date.now()}`;
-    const optimisticMsg = {
+    setMessages(prev => [...prev, {
       id: optimisticId, application_id: app.id, sender_type: 'admin',
-      message: newMessage.trim(), is_read: false, created_at: new Date().toISOString(),
-    };
-    setMessages(prev => [...prev, optimisticMsg]);
+      message: text, is_read: false, created_at: new Date().toISOString(),
+    }]);
     setNewMessage('');
     setSendingMsg(true);
 
     const { error, data } = await supabase.from('application_chat_messages').insert([{
-      application_id: app.id, sender_type: 'admin', message: newMessage.trim(),
+      application_id: app.id, sender_type: 'admin', message: text,
     }]).select().single();
 
     setSendingMsg(false);
-    if (error) {
+    if (error || !data) {
       setMessages(prev => prev.filter(m => m.id !== optimisticId));
-      toast.error('Failed to send');
+      if (error) toast.error('Failed to send');
       return;
     }
 
+    // Replace optimistic message with real data (no flash)
+    setMessages(prev => prev.map(m => m.id === optimisticId ? data : m));
+
     // Broadcast to applicant in realtime
-    if (data) broadcastMessage(app.id, data);
-    else loadDetails();
+    broadcastMessage(app.id, data);
 
     await supabase.from('application_notifications').insert([{
       application_id: app.id, recipient_type: 'applicant',
