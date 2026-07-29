@@ -476,6 +476,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             {tab === 'messages' && (
               <MessagesTab
                 messages={messages}
+                setMessages={setMessages}
                 onRefresh={loadAll}
                 someoneTyping={someoneTyping}
                 typingUser={typingUser}
@@ -528,10 +529,11 @@ function NotificationPanel({ notifications, onRefresh }: { notifications: any[];
 
 /* ─── Messages Tab ─── */
 function MessagesTab({
-  messages, onRefresh, someoneTyping, typingUser, setSomeoneTyping,
+  messages, setMessages, onRefresh, someoneTyping, typingUser, setSomeoneTyping,
   applicantName, appId, adminPresent,
 }: {
-  messages: any[]; onRefresh: () => void; someoneTyping: boolean; typingUser: string;
+  messages: any[]; setMessages: React.Dispatch<React.SetStateAction<any[]>>; onRefresh: () => void;
+  someoneTyping: boolean; typingUser: string;
   setSomeoneTyping: (v: boolean) => void; applicantName: string; appId: string; adminPresent: boolean;
 }) {
   const [newMessage, setNewMessage] = useState('');
