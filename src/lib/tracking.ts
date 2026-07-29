@@ -420,6 +420,176 @@ export async function markMessagesAsRead(messageIds: string[]) {
     .in('id', messageIds);
 }
 
+// ─── Student Enrollment ───
+
+const CLASSES_BY_GRADE: Record<string, string[]> = {
+  'Form 1': ['1A1', '1A2', '1A3'],
+  'Form 2': ['2A1', '2A2', '2A3'],
+  'Form 3': ['3A1', '3A2', '3A3'],
+  'Form 4': ['4A1', '4A2', '4A3'],
+  'Form 5': ['Lower6 Arts', 'Lower6 Science', 'Lower6 Commerce'],
+  'Form 6': ['Upper6 Arts', 'Upper6 Science', 'Upper6 Commerce'],
+};
+
+const HOUSE_NAMES = ['Mafuyana', 'Mzilikazi', 'Champagnat', 'Lwanga'];
+
+export function getClassesByGrade(grade: string): string[] {
+  return CLASSES_BY_GRADE[grade] || [];
+}
+
+export function getHouseNames(): string[] {
+  return HOUSE_NAMES;
+}
+
+export async function generateStudentId(): Promise<string> {
+  const { data, error } = await supabase.rpc('generate_student_id');
+  if (error) throw error;
+  return data as string;
+}
+
+export interface EnrollStudentData {
+  application_id: string;
+  first_name: string;
+  last_name: string;
+  house: string;
+  grade: string;
+  class: string;
+  date_of_birth?: string;
+  gender?: string;
+  parent_name?: string;
+  parent_contact?: string;
+  parent_email?: string;
+  address?: string;
+}
+
+export async function enrollStudent(data: EnrollStudentData): Promise<{ success: boolean; student?: any; error?: string }> {
+  try {
+    const studentId = await generateStudentId();
+
+    const { data: student, error } = await supabase.from('students').insert([{
+      student_id: studentId,
+      application_id: data.application_id,
+      first_name: data.first_name,
+      last_name: data.last_name,
+      house: data.house,
+      grade: data.grade,
+      class: data.class,
+      date_of_birth: data.date_of_birth || null,
+      gender: data.gender || null,
+      parent_name: data.parent_name || null,
+      parent_contact: data.parent_contact || null,
+      parent_email: data.parent_email || null,
+      address: data.address || null,
+    }]).select().single();
+
+    if (error) return { success: false, error: error.message };
+
+    // Update application status to enrolled
+    await supabase.from('application_statuses').insert([{
+      application_id: data.application_id,
+      status: 'enrolled',
+      notes: 'Enrolled as student: ' + studentId,
+    }]);
+
+    return { success: true, student: student || undefined };
+  } catch (err) {
+    return { success: false, error: 'Enrollment failed' };
+  }
+}
+
+export async function getEnrolledStudent(appId: string): Promise<any | null> {
+  const { data } = await supabase.from('students').select('*').eq('application_id', appId).maybeSingle();
+  return data || null;
+}
+
+export async function getAllStudents() {
+  const { data } = await supabase.from('students').select('*').order('admission_date', { ascending: false });
+  return data || [];
+}
+
+export async function getStudentById(id: string) {
+  const { data } = await supabase.from('students').select('*').eq('id', id).single();
+  return data;
+}
+
+export async function updateStudent(id: string, updates: Record<string, any>) {
+  const { data, error } = await supabase.from('students').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function archiveStudent(id: string) {
+  const { data, error } = await supabase.from('students').update({ status: 'archived', updated_at: new Date().toISOString() }).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getAcceptedApplications() {
+  const { data: latestStatuses } = await supabase
+    .from('application_statuses')
+    .select('application_id, status, created_at')
+    .in('status', ['accepted', 'enrolled'])
+    .order('created_at', { ascending: false });
+
+  if (!latestStatuses) return [];
+
+  // Get unique latest status per application
+  const latest: Record<string, any> = {};
+  for (const s of latestStatuses) {
+    if (!latest[s.application_id]) latest[s.application_id] = s;
+  }
+
+  const acceptedIds = Object.entries(latest)
+    .filter(([, s]) => (s as any).status === 'accepted')
+    .map(([id]) => id);
+
+  if (acceptedIds.length === 0) return [];
+
+  const { data: apps } = await supabase
+    .from('admission_applications')
+    .select('*')
+    .in('id', acceptedIds)
+    .order('created_at', { ascending: false });
+
+  return apps || [];
+}
+
+export async function getDashboardStats() {
+  const [appRes, studentRes] = await Promise.all([
+    supabase.from('application_statuses').select('application_id, status').order('created_at', { ascending: false }),
+    supabase.from('students').select('house, grade, class, status'),
+  ]);
+
+  const statuses = appRes.data || [];
+  // Get latest status per application
+  const latest: Record<string, string> = {};
+  for (const s of statuses) {
+    if (!latest[s.application_id]) latest[s.application_id] = s.status;
+  }
+
+  const statusCounts = { pending: 0, accepted: 0, rejected: 0, enrolled: 0 };
+  for (const s of Object.values(latest)) {
+    if (s === 'accepted') statusCounts.accepted++;
+    else if (s === 'rejected') statusCounts.rejected++;
+    else if (s === 'enrolled') statusCounts.enrolled++;
+    else statusCounts.pending++;
+  }
+
+  const students = studentRes.data || [];
+  const totalStudents = students.filter(s => s.status === 'active').length;
+  const perHouse: Record<string, number> = {};
+  const perGrade: Record<string, number> = {};
+  const perClass: Record<string, number> = {};
+  for (const s of students) {
+    if (s.status !== 'active') continue;
+    perHouse[s.house] = (perHouse[s.house] || 0) + 1;
+    perGrade[s.grade] = (perGrade[s.grade] || 0) + 1;
+    perClass[s.class] = (perClass[s.class] || 0) + 1;
+  }
+
+  return { statusCounts, totalStudents, perHouse, perGrade, perClass };
+}
+
 // ─── Extended status list ───
 
 const STATUS_LABELS_EXTENDED: Record<string, string> = {

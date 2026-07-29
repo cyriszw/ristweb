@@ -13,7 +13,7 @@ import {
   getStoredApplicationId, getStoredTrackingToken, subscribeToApplicationChannel,
   markMessagesAsRead, broadcastMessage, broadcastTyping,
   getStatusDescription, getStatusIcon, getProgressSteps, getProgressIndex,
-  getApplicationStatuses,
+  getApplicationStatuses, getEnrolledStudent,
 } from '@/lib/tracking';
 import {
   LogOut, Send, Upload, FileText, Download, MessageSquare, Bell, Clock,
@@ -41,6 +41,7 @@ function StatusCard({ status, appData }: { status: any; appData: any }) {
     accepted: 'from-green-500 to-emerald-600 shadow-green-500/25',
     rejected: 'from-red-500 to-rose-600 shadow-red-500/25',
     waitlisted: 'from-gray-500 to-slate-600 shadow-gray-500/25',
+    enrolled: 'from-emerald-500 to-teal-600 shadow-emerald-500/25',
     enrolment_complete: 'from-emerald-500 to-teal-600 shadow-emerald-500/25',
   };
   const badgeColor: Record<string, string> = {
@@ -51,6 +52,7 @@ function StatusCard({ status, appData }: { status: any; appData: any }) {
     accepted: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
     rejected: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
     waitlisted: 'bg-gray-100 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300',
+    enrolled: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
     enrolment_complete: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
   };
   const iconMap: Record<string, any> = {
@@ -61,6 +63,7 @@ function StatusCard({ status, appData }: { status: any; appData: any }) {
     accepted: CheckCircle,
     rejected: XCircle,
     waitlisted: Clock,
+    enrolled: GraduationCap,
     enrolment_complete: GraduationCap,
   };
   const Icon = iconMap[statusKey] || FileText;
@@ -104,6 +107,45 @@ function InfoItem({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">{label}</p>
       <p className="text-sm font-semibold text-foreground mt-0.5">{value || '—'}</p>
+    </div>
+  );
+}
+
+/* ─── Enrolled Student Card ─── */
+function EnrolledStudentCard({ student }: { student: any }) {
+  return (
+    <div className="bg-card border rounded-2xl p-6 md:p-8 shadow-sm space-y-6">
+      <div className="flex items-center gap-4">
+        <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/25">
+          <GraduationCap className="w-7 h-7 text-white" />
+        </div>
+        <div>
+          <h2 className="text-xl md:text-2xl font-bold text-foreground">Congratulations!</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Your application has been accepted. Please wait while the school administrator completes your enrollment and assigns your student information.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Once assigned, your student profile will automatically appear below.
+          </p>
+        </div>
+      </div>
+
+      <div className="border-t pt-6">
+        <h3 className="font-semibold text-foreground mb-4">Student Profile</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <InfoItem label="Student ID" value={student.student_id} />
+          <InfoItem label="Full Name" value={`${student.first_name} ${student.last_name}`} />
+          <InfoItem label="House" value={student.house} />
+          <InfoItem label="Grade/Form" value={student.grade} />
+          <InfoItem label="Class" value={student.class} />
+          <InfoItem label="Admission Date" value={new Date(student.admission_date).toLocaleDateString()} />
+        </div>
+        <div className="mt-4">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+            <CheckCircle className="w-3 h-3" /> Active Student
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -288,6 +330,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [activityLog, setActivityLog] = useState<any[]>([]);
+  const [enrolledStudent, setEnrolledStudent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [someoneTyping, setSomeoneTyping] = useState(false);
   const [typingUser, setTypingUser] = useState('');
@@ -297,7 +340,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [app, status, msgs, atts, notifs, count, activity] = await Promise.all([
+    const [app, status, msgs, atts, notifs, count, activity, student] = await Promise.all([
       getApplicationData(),
       getCurrentStatus(),
       getChatMessages(),
@@ -305,6 +348,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       getNotifications(),
       getUnreadNotificationCount(),
       getActivityLog(),
+      getEnrolledStudent(appId),
     ]);
     setAppData(app);
     setCurrentStatus(status);
@@ -313,8 +357,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setNotifications(notifs);
     setUnreadCount(count);
     setActivityLog(activity);
+    setEnrolledStudent(student);
     setLoading(false);
-  }, []);
+  }, [appId]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
@@ -470,6 +515,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               <>
                 <StatusCard status={currentStatus} appData={appData} />
                 <ProgressTracker currentStatus={currentStatus} />
+                {enrolledStudent && <EnrolledStudentCard student={enrolledStudent} />}
                 <NotificationPanel notifications={notifications} onRefresh={loadAll} />
               </>
             )}
