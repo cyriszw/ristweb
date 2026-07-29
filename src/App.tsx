@@ -27,6 +27,7 @@ import Maintenance from "./pages/Maintenance";
 import SchoolPortal from "./pages/SchoolPortal";
 import NotFound from "./pages/NotFound";
 import QuickEditor from "./components/admin/QuickEditor";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 
 const queryClient = new QueryClient();
@@ -79,8 +80,8 @@ const App = () => (
                 <Route path="/home" element={<Index />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/academics" element={<Academics />} />
-                <Route path="/admissions" element={<Admissions />} />
-                <Route path="/application-status" element={<ApplicationStatus />} />
+                <Route path="/admissions" element={<ErrorBoundary><Admissions /></ErrorBoundary>} />
+                <Route path="/application-status" element={<ErrorBoundary><ApplicationStatus /></ErrorBoundary>} />
                 <Route path="/news" element={<News />} />
                 <Route path="/gallery" element={<Gallery />} />
                 <Route path="/clubs" element={<Clubs />} />
