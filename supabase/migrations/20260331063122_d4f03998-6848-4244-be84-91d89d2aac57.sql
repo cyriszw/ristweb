@@ -1,0 +1,1 @@
+CREATE POLICY "Anyone can update gallery likes" ON public.gallery FOR UPDATE TO public USING (true) WITH CHECK (true);
