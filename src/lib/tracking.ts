@@ -71,14 +71,18 @@ export async function loginToPortal(username: string, password: string): Promise
     const { data: records, error } = await supabase
       .from('application_tracking')
       .select('id, application_id, username, password_hash, tracking_token')
-      .eq('username', username);
+      .eq('username', username)
+      .order('last_login', { ascending: false, nullsFirst: false });
 
     if (error) return { success: false, error: 'Login failed' };
     if (!records || records.length === 0) return { success: false, error: 'Invalid name or application ID' };
 
-    const record = records[0];
-    const valid = await verifyPassword(password, record.password_hash);
-    if (!valid) return { success: false, error: 'Invalid name or application ID' };
+    let record: typeof records[0] | null = null;
+    for (const r of records) {
+      const valid = await verifyPassword(password, r.password_hash);
+      if (valid) { record = r; break; }
+    }
+    if (!record) return { success: false, error: 'Invalid name or application ID' };
 
     await supabase.from('application_tracking').update({ last_login: new Date().toISOString() }).eq('id', record.id);
 
