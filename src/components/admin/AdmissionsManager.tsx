@@ -10,6 +10,7 @@ import {
   User, Mail, Phone, Calendar, Upload, X, Eye, AlertCircle, CheckCircle,
   Paperclip
 } from 'lucide-react';
+import { subscribeToAdminChat, broadcastMessage, broadcastStatusChange, broadcastNotification } from '@/lib/tracking';
 
 const STATUS_OPTIONS = [
   'submitted', 'under_review', 'additional_info_required',
@@ -143,6 +144,18 @@ function ApplicationDetail({ app, onBack }: { app: any; onBack: () => void }) {
   useEffect(() => { loadDetails(); }, [loadDetails]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
+  // Realtime: listen for new messages from applicant
+  useEffect(() => {
+    const cleanup = subscribeToAdminChat(app.id, (newMsg: any) => {
+      setMessages(prev => {
+        if (prev.some(m => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
+      toast(`New message from ${app.student_name}`, { icon: <MessageSquare className="w-4 h-4" /> });
+    });
+    return cleanup;
+  }, [app.id, app.student_name]);
+
   const handleStatusChange = async () => {
     if (!selectedStatus) { toast.error('Select a status'); return; }
     setSaving(true);
@@ -170,6 +183,17 @@ function ApplicationDetail({ app, onBack }: { app: any; onBack: () => void }) {
       details: `Status changed to: ${STATUS_LABELS[selectedStatus]}${newNote.trim() ? ` - ${newNote.trim()}` : ''}`,
     }]);
 
+    // Broadcast to applicant in realtime
+    broadcastStatusChange(app.id, {
+      status: selectedStatus,
+      notes: newNote.trim() || null,
+      created_at: new Date().toISOString(),
+    });
+    broadcastNotification(app.id, {
+      title: 'Application Status Updated',
+      message: `Your status has been changed to: ${STATUS_LABELS[selectedStatus]}`,
+    });
+
     setSelectedStatus('');
     setNewNote('');
     loadDetails();
@@ -177,21 +201,35 @@ function ApplicationDetail({ app, onBack }: { app: any; onBack: () => void }) {
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
-    setSendingMsg(true);
-    const { error } = await supabase.from('application_chat_messages').insert([{
-      application_id: app.id, sender_type: 'admin', message: newMessage.trim(),
-    }]);
-    setSendingMsg(false);
-    if (error) { toast.error('Failed to send'); return; }
+    const optimisticId = `opt-${Date.now()}`;
+    const optimisticMsg = {
+      id: optimisticId, application_id: app.id, sender_type: 'admin',
+      message: newMessage.trim(), is_read: false, created_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
     setNewMessage('');
+    setSendingMsg(true);
+
+    const { error, data } = await supabase.from('application_chat_messages').insert([{
+      application_id: app.id, sender_type: 'admin', message: newMessage.trim(),
+    }]).select().single();
+
+    setSendingMsg(false);
+    if (error) {
+      setMessages(prev => prev.filter(m => m.id !== optimisticId));
+      toast.error('Failed to send');
+      return;
+    }
+
+    // Broadcast to applicant in realtime
+    if (data) broadcastMessage(app.id, data);
+    else loadDetails();
 
     await supabase.from('application_notifications').insert([{
       application_id: app.id, recipient_type: 'applicant',
       title: 'New Message from Admissions',
       message: 'You have a new message from the admissions office.',
     }]);
-
-    loadDetails();
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

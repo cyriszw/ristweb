@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { hashPassword, verifyPassword, generateTrackingToken } from './crypto';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 const TRACKING_TOKEN_KEY = 'marist_tracking_token';
 const TRACKING_APP_ID_KEY = 'marist_tracking_app_id';
@@ -298,4 +299,199 @@ export function getStatusLabel(status: string): string {
 
 export function getStatusColor(status: string): string {
   return STATUS_COLORS[status] || 'bg-gray-100 text-gray-800';
+}
+
+// ─── Realtime (Broadcast-based for applicant; Postgres Changes for admin) ───
+
+type ChannelHandler = (payload: any) => void;
+
+function getAppChannelName(appId: string): string {
+  return `application-${appId}`;
+}
+
+/** Subscribe to the realtime broadcast channel for the current application */
+export function subscribeToApplicationChannel(
+  onMessage: ChannelHandler,
+  onStatusChange: ChannelHandler,
+  onNotification: ChannelHandler,
+  onTyping: ChannelHandler,
+  onPresence: ChannelHandler,
+): (() => void) | null {
+  const appId = getStoredApplicationId();
+  if (!appId) return null;
+
+  const channel: RealtimeChannel = supabase.channel(getAppChannelName(appId));
+
+  channel
+    .on('broadcast', { event: 'message' }, (payload) => onMessage(payload))
+    .on('broadcast', { event: 'status_change' }, (payload) => onStatusChange(payload))
+    .on('broadcast', { event: 'notification' }, (payload) => onNotification(payload))
+    .on('broadcast', { event: 'typing' }, (payload) => onTyping(payload))
+    .on('presence', { event: 'sync' }, () => {
+      const state = channel.presenceState();
+      onPresence(state);
+    })
+    .subscribe();
+
+  return () => { supabase.removeChannel(channel); };
+}
+
+/** Broadcast a chat message event to the application channel */
+export function broadcastMessage(appId: string, message: any) {
+  supabase.channel(getAppChannelName(appId)).send({
+    type: 'broadcast',
+    event: 'message',
+    payload: message,
+  });
+}
+
+/** Broadcast a status change event */
+export function broadcastStatusChange(appId: string, status: any) {
+  supabase.channel(getAppChannelName(appId)).send({
+    type: 'broadcast',
+    event: 'status_change',
+    payload: status,
+  });
+}
+
+/** Broadcast a notification event */
+export function broadcastNotification(appId: string, notification: any) {
+  supabase.channel(getAppChannelName(appId)).send({
+    type: 'broadcast',
+    event: 'notification',
+    payload: notification,
+  });
+}
+
+/** Broadcast typing indicator */
+export function broadcastTyping(appId: string, isTyping: boolean, userName: string) {
+  supabase.channel(getAppChannelName(appId)).send({
+    type: 'broadcast',
+    event: 'typing',
+    payload: { isTyping, userName, timestamp: Date.now() },
+  });
+}
+
+/** Track presence on the application channel (online status) */
+export function trackPresence(appId: string, userName: string): (() => void) | null {
+  if (!appId) return null;
+  const channel = supabase.channel(getAppChannelName(appId));
+  channel
+    .on('presence', { event: 'sync' }, () => {})
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await channel.track({ user: userName, online_at: new Date().toISOString() });
+      }
+    });
+  return () => { supabase.removeChannel(channel); };
+}
+
+// ─── Admin-side Realtime (Postgres Changes) ───
+
+export function subscribeToAdminChat(
+  appId: string,
+  onInsert: (msg: any) => void,
+): () => void {
+  const channel = supabase
+    .channel(`admin-chat-${appId}`)
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'application_chat_messages', filter: `application_id=eq.${appId}` },
+      (payload) => onInsert(payload.new),
+    )
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}
+
+export function subscribeToAdminNotifications(
+  onInsert: (n: any) => void,
+): () => void {
+  const channel = supabase
+    .channel('admin-notifications')
+    .on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'application_notifications', filter: 'recipient_type=eq.admin' },
+      (payload) => onInsert(payload.new),
+    )
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}
+
+// ─── Mark messages as read (for applicant) ───
+
+export async function markMessagesAsRead(messageIds: string[]) {
+  if (messageIds.length === 0) return;
+  await supabase
+    .from('application_chat_messages')
+    .update({ is_read: true })
+    .in('id', messageIds);
+}
+
+// ─── Extended status list ───
+
+const STATUS_LABELS_EXTENDED: Record<string, string> = {
+  submitted: 'Submitted',
+  under_review: 'Under Review',
+  additional_info_required: 'Documents Required',
+  interview_scheduled: 'Interview Scheduled',
+  accepted: 'Accepted',
+  rejected: 'Rejected',
+  waitlisted: 'Waitlisted',
+  enrolment_complete: 'Enrolment Complete',
+};
+
+const STATUS_DESCRIPTIONS: Record<string, string> = {
+  submitted: 'Your application has been successfully submitted and is awaiting review.',
+  under_review: 'The admissions office is currently reviewing your application.',
+  additional_info_required: 'Additional documents are required before your application can continue.',
+  interview_scheduled: 'Your interview has been scheduled. Please attend on the specified date.',
+  accepted: 'Congratulations! Your application has been accepted.',
+  rejected: 'Unfortunately your application was not successful.',
+  waitlisted: 'Your application has been placed on the waiting list.',
+  enrolment_complete: 'Your admission process has been completed successfully.',
+};
+
+const STATUS_ICONS: Record<string, string> = {
+  submitted: 'FileText',
+  under_review: 'Search',
+  additional_info_required: 'Paperclip',
+  interview_scheduled: 'Calendar',
+  accepted: 'CheckCircle',
+  rejected: 'XCircle',
+  waitlisted: 'Clock',
+  enrolment_complete: 'GraduationCap',
+};
+
+const PROGRESS_STEPS = [
+  'Application Submitted',
+  'Under Review',
+  'Documents Verification',
+  'Interview',
+  'Admission Decision',
+  'Enrolment Complete',
+];
+
+const STATUS_TO_PROGRESS_INDEX: Record<string, number> = {
+  submitted: 0,
+  under_review: 1,
+  additional_info_required: 1,
+  interview_scheduled: 2,
+  accepted: 4,
+  rejected: -1,
+  waitlisted: 3,
+  enrolment_complete: 5,
+};
+
+export function getStatusDescription(status: string): string {
+  return STATUS_DESCRIPTIONS[status] || '';
+}
+
+export function getStatusIcon(status: string): string {
+  return STATUS_ICONS[status] || 'FileText';
+}
+
+export function getProgressSteps(): string[] {
+  return PROGRESS_STEPS;
+}
+
+export function getProgressIndex(status: string): number {
+  return STATUS_TO_PROGRESS_INDEX[status] ?? 0;
 }
