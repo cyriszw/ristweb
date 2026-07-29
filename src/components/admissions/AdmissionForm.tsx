@@ -40,19 +40,21 @@ export default function AdmissionForm({ enableSubjectSelection }: Props) {
       return;
     }
     setSubmitting(true);
-    const { data, error } = await supabase.from('admission_applications').insert([{
+    const appId = crypto.randomUUID();
+    const { error } = await supabase.from('admission_applications').insert([{
+      id: appId,
       student_name: form.student_name.trim(),
       email: form.email.trim(),
       phone: form.phone.trim() || null,
       level: form.level,
       o_level_subjects: form.level === 'o-level' ? oLevelSubjects : [],
       a_level_subjects: form.level === 'a-level' ? aLevelSelected : [],
-    }]).select().single();
+    }]);
 
     setSubmitting(false);
-    if (error || !data) { toast.error('Failed to submit application. Please try again.'); return; }
+    if (error) { toast.error('Failed to submit application. Please try again.'); return; }
     setSubmitted(true);
-    setSubmittedAppId(data.id);
+    setSubmittedAppId(appId);
     toast.success('Application submitted successfully!');
   };
 
