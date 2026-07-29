@@ -128,6 +128,10 @@ ALTER TABLE public.application_notifications ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can lookup tracking by username" ON public.application_tracking
   FOR SELECT USING (true);
 
+CREATE POLICY "Anyone can create tracking accounts" ON public.application_tracking
+  FOR INSERT TO public
+  WITH CHECK (application_id IN (SELECT id FROM public.admission_applications));
+
 CREATE POLICY "Applicants can select own statuses via tracking token" ON public.application_statuses
   FOR SELECT USING (
     application_id IN (
