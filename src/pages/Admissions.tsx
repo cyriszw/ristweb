@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { FileText, Download, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import AdmissionForm from '@/components/admissions/AdmissionForm';
 
 function S({ children, className = '' }: { children: React.ReactNode; className?: string }) {
