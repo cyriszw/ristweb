@@ -458,8 +458,8 @@ const STATUS_ICONS: Record<string, string> = {
 const PROGRESS_STEPS = [
   'Application Submitted',
   'Under Review',
-  'Documents Verification',
-  'Interview',
+  'Additional Info Required',
+  'Interview Scheduled',
   'Admission Decision',
   'Enrolment Complete',
 ];
@@ -467,8 +467,8 @@ const PROGRESS_STEPS = [
 const STATUS_TO_PROGRESS_INDEX: Record<string, number> = {
   submitted: 0,
   under_review: 1,
-  additional_info_required: 1,
-  interview_scheduled: 2,
+  additional_info_required: 2,
+  interview_scheduled: 3,
   accepted: 4,
   rejected: -1,
   waitlisted: 3,
