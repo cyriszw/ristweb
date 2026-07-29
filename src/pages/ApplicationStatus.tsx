@@ -11,7 +11,7 @@ import {
   getAttachments, uploadAttachment, getNotifications, getUnreadNotificationCount,
   markNotificationsRead, getActivityLog, getStatusLabel, getStatusColor,
   getStoredApplicationId, getStoredTrackingToken, subscribeToApplicationChannel,
-  markMessagesAsRead, broadcastMessage, broadcastTyping, trackPresence,
+  markMessagesAsRead, broadcastMessage, broadcastTyping,
   getStatusDescription, getStatusIcon, getProgressSteps, getProgressIndex,
   getApplicationStatuses,
 } from '@/lib/tracking';
@@ -351,15 +351,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       (state) => {
         setPresence(state);
       },
+      applicantName,
     );
     return () => { if (cleanup) cleanup(); };
   }, [appId, applicantName, loadAll]);
-
-  // Track presence
-  useEffect(() => {
-    const cleanup = trackPresence(appId, applicantName);
-    return () => { if (cleanup) cleanup(); };
-  }, [appId, applicantName]);
 
   // Mark admin messages as read when tab opens
   useEffect(() => {

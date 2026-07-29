@@ -309,13 +309,14 @@ function getAppChannelName(appId: string): string {
   return `application-${appId}`;
 }
 
-/** Subscribe to the realtime broadcast channel for the current application */
+/** Subscribe to the realtime broadcast channel for the current application and track presence */
 export function subscribeToApplicationChannel(
   onMessage: ChannelHandler,
   onStatusChange: ChannelHandler,
   onNotification: ChannelHandler,
   onTyping: ChannelHandler,
   onPresence: ChannelHandler,
+  userName?: string,
 ): (() => void) | null {
   const appId = getStoredApplicationId();
   if (!appId) return null;
@@ -331,7 +332,11 @@ export function subscribeToApplicationChannel(
       const state = channel.presenceState();
       onPresence(state);
     })
-    .subscribe();
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED' && userName) {
+        await channel.track({ user: userName, online_at: new Date().toISOString() });
+      }
+    });
 
   return () => { supabase.removeChannel(channel); };
 }
@@ -370,20 +375,6 @@ export function broadcastTyping(appId: string, isTyping: boolean, userName: stri
     event: 'typing',
     payload: { isTyping, userName, timestamp: Date.now() },
   });
-}
-
-/** Track presence on the application channel (online status) */
-export function trackPresence(appId: string, userName: string): (() => void) | null {
-  if (!appId) return null;
-  const channel = supabase.channel(getAppChannelName(appId));
-  channel
-    .on('presence', { event: 'sync' }, () => {})
-    .subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await channel.track({ user: userName, online_at: new Date().toISOString() });
-      }
-    });
-  return () => { supabase.removeChannel(channel); };
 }
 
 // ─── Admin-side Realtime (Postgres Changes) ───
