@@ -59,6 +59,7 @@ export default function Navbar() {
               {l.label}
             </Link>
           ))}
+          <Link to="/marketplace/seller/login" className="ml-2 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:bg-primary/90 transition-colors">Seller Login</Link>
         </nav>
 
         <button
@@ -112,7 +113,14 @@ export default function Navbar() {
                 </Link>
               ))}
             </div>
-            <div className="p-4 border-t shrink-0">
+            <div className="p-4 border-t shrink-0 space-y-2">
+              <Link
+                to="/marketplace/seller/login"
+                onClick={() => setOpen(false)}
+                className="flex items-center justify-center min-h-[48px] rounded-lg bg-primary text-primary-foreground font-bold text-sm"
+              >
+                Seller Login
+              </Link>
               <Link
                 to="/admissions"
                 onClick={() => setOpen(false)}

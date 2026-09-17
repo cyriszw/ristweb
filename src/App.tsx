@@ -25,6 +25,10 @@ import Marketplace from "./pages/Marketplace";
 import MarketplaceRegister from "./pages/MarketplaceRegister";
 import MarketplaceDashboard from "./pages/MarketplaceDashboard";
 import MarketplaceRules from "./pages/MarketplaceRules";
+import MarketplaceSellerRegister from "./pages/MarketplaceSellerRegister";
+import MarketplaceSellerLogin from "./pages/MarketplaceSellerLogin";
+import MarketplaceSellerDashboard from "./pages/MarketplaceSellerDashboard";
+import MarketplaceStorePublic from "./pages/MarketplaceStorePublic";
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import Maintenance from "./pages/Maintenance";
@@ -32,6 +36,7 @@ import SchoolPortal from "./pages/SchoolPortal";
 import NotFound from "./pages/NotFound";
 import QuickEditor from "./components/admin/QuickEditor";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { SellerProvider } from "./hooks/useSeller";
 
 
 const queryClient = new QueryClient();
@@ -76,6 +81,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AuthProvider>
+        <SellerProvider>
         <MaintenanceProvider>
           <BrowserRouter>
             <MaintenanceGuard>
@@ -100,6 +106,10 @@ const App = () => (
                 <Route path="/marketplace/register" element={<MarketplaceRegister />} />
                 <Route path="/marketplace/dashboard" element={<MarketplaceDashboard />} />
                 <Route path="/marketplace/rules" element={<MarketplaceRules />} />
+                <Route path="/marketplace/seller/register" element={<MarketplaceSellerRegister />} />
+                <Route path="/marketplace/seller/login" element={<MarketplaceSellerLogin />} />
+                <Route path="/marketplace/seller/dashboard" element={<MarketplaceSellerDashboard />} />
+                <Route path="/marketplace/store/:slug" element={<MarketplaceStorePublic />} />
                 <Route path="/school-portal" element={<SchoolPortal />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/admin" element={<AdminDashboard />} />
@@ -110,6 +120,7 @@ const App = () => (
           </BrowserRouter>
 
         </MaintenanceProvider>
+        </SellerProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

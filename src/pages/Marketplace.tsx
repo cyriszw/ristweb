@@ -35,6 +35,7 @@ const CATEGORIES = [
 
 export default function Marketplace() {
   const [listings, setListings] = useState<Listing[]>([]);
+  const [stores, setStores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState('all');
   const [search, setSearch] = useState('');
@@ -44,8 +45,6 @@ export default function Marketplace() {
   useEffect(() => {
     const fetch = async () => {
       setLoading(true);
-      // Public listings: only approved & visible, but RLS for anon is is_visible=true and status approved
-      // So we can just query listings with is_visible check handled by RLS; for service we filter client side as well
       const { data, error } = await supabase
         .from('marketplace_listings' as any)
         .select('*, marketplace_products(name,category), marketplace_sellers(full_name)')
@@ -53,6 +52,8 @@ export default function Marketplace() {
         .eq('is_visible', true)
         .order('created_at', { ascending: false });
       if (!error && data) setListings(data as any);
+      const { data: st } = await supabase.from('marketplace_stores' as any).select('id, store_name, slug, logo_url, banner_url, description, location').eq('status','active').order('created_at',{ascending:false}).limit(8);
+      if(st) setStores(st as any);
       setLoading(false);
     };
     fetch();
@@ -89,8 +90,9 @@ export default function Marketplace() {
               School-approved sellers and school-approved products — moderated by administration. Safe, transparent and community-focused.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link to="/marketplace/register" className="inline-flex items-center justify-center rounded-full bg-white text-primary px-6 py-2.5 text-sm font-semibold hover:bg-white/90 transition-colors">Register as a Seller</Link>
-              <Link to="/marketplace/dashboard" className="inline-flex items-center justify-center rounded-full bg-primary-foreground/10 text-white border border-white/20 px-6 py-2.5 text-sm font-semibold hover:bg-white/10 transition-colors">My Listings</Link>
+              <Link to="/marketplace/seller/login" className="inline-flex items-center justify-center rounded-full bg-white text-primary px-6 py-2.5 text-sm font-semibold hover:bg-white/90 transition-colors shadow-sm">Seller Login</Link>
+              <Link to="/marketplace/seller/register" className="inline-flex items-center justify-center rounded-full bg-primary-foreground/10 text-white border border-white/20 px-6 py-2.5 text-sm font-semibold hover:bg-white/10 transition-colors">Become a Seller</Link>
+              <Link to="/marketplace/seller/dashboard" className="inline-flex items-center justify-center rounded-full bg-emerald-500 text-white px-6 py-2.5 text-sm font-semibold hover:bg-emerald-600 transition-colors">Seller Dashboard</Link>
               <Link to="/marketplace/rules" className="inline-flex items-center gap-1.5 text-sm text-white/90 hover:text-white underline underline-offset-4"><ShieldCheck className="w-4 h-4" /> Marketplace Rules</Link>
             </div>
           </div>
@@ -116,6 +118,29 @@ export default function Marketplace() {
           </div>
         </div>
       </section>
+
+      {/* Stores */}
+      {stores.length>0 && (
+        <section className="py-8 bg-muted/20 border-b">
+          <div className="container">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display text-lg font-bold flex items-center gap-2"><ShoppingBag className="w-5 h-5 text-primary" /> Featured Stores</h2>
+              <Link to="/marketplace/seller/register" className="text-sm text-primary underline">Open your store →</Link>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {stores.map((s:any)=>(
+                <Link key={s.id} to={`/marketplace/store/${s.slug}`} className="bg-card border rounded-xl overflow-hidden hover:shadow-md transition-shadow group">
+                  <div className="h-20 bg-primary/10 overflow-hidden">{s.banner_url ? <img src={s.banner_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <div className="w-full h-full bg-gradient-to-br from-primary to-primary/60" />}</div>
+                  <div className="p-3 flex gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden shrink-0 -mt-6 border-2 border-white shadow">{s.logo_url ? <img src={s.logo_url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><ShoppingBag className="w-5 h-5 text-muted-foreground" /></div>}</div>
+                    <div className="min-w-0"><p className="font-semibold text-sm truncate">{s.store_name}</p><p className="text-xs text-muted-foreground truncate">{s.location||'School Marketplace'}</p><p className="text-xs text-primary mt-1">View store →</p></div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Filters */}
       <section className="py-6 bg-muted/30">
