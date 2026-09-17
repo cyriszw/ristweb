@@ -40,3 +40,6 @@ MANUAL_MIGRATION.sql
 # Backups - do not commit large media backups
 MEDIA/
 
+
+supabase/.temp/
+
