@@ -14,12 +14,9 @@ export default function MarketplaceRegister() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     fullName: '',
-    providerName: '',
-    studentName: '',
-    studentId: '',
     phone: '',
     email: user?.email || '',
-    sellerType: 'parent' as 'parent'|'guardian'|'provider'|'vendor',
+    sellerType: 'vendor' as 'parent'|'guardian'|'provider'|'vendor',
     intendedItems: '',
     agreement: false,
   });
@@ -37,9 +34,6 @@ export default function MarketplaceRegister() {
     const { error } = await supabase.from('marketplace_sellers' as any).insert([{
       user_id: user ? user.id : null,
       full_name: form.fullName,
-      provider_name: form.providerName || null,
-      student_name: form.studentName || null,
-      student_id_reg: form.studentId || null,
       phone: form.phone,
       email: form.email,
       seller_type: form.sellerType,
@@ -126,25 +120,18 @@ export default function MarketplaceRegister() {
               <p className="text-xs text-muted-foreground">Tell us who you are. Fields marked * are required.</p>
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div><label className="text-sm font-medium">Full Name *</label><Input value={form.fullName} onChange={e=>setForm({...form, fullName:e.target.value})} placeholder="John Doe" className={attempted && !form.fullName ? 'border-red-300' : ''} /></div>
-              <div><label className="text-sm font-medium">Seller Type *</label>
-                <select value={form.sellerType} onChange={e=>setForm({...form, sellerType:e.target.value as any})} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                  <option value="parent">Parent</option>
-                  <option value="guardian">Guardian</option>
-                  <option value="provider">Approved tuck-food provider</option>
-                  <option value="vendor">Other approved vendor</option>
-                </select>
-              </div>
-            </div>
-            <div><label className="text-sm font-medium">Parent/Guardian or Provider Name</label><Input value={form.providerName} onChange={e=>setForm({...form, providerName:e.target.value})} placeholder="If different from above" /></div>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div><label className="text-sm font-medium">Student Name (if applicable)</label><Input value={form.studentName} onChange={e=>setForm({...form, studentName:e.target.value})} placeholder="e.g., Tariro Moyo" /></div>
-              <div><label className="text-sm font-medium">Student ID / Registration Number</label><Input value={form.studentId} onChange={e=>setForm({...form, studentId:e.target.value})} placeholder="e.g., MBH/2024/123" /></div>
-            </div>
+            <div><label className="text-sm font-medium">Full Name *</label><Input value={form.fullName} onChange={e=>setForm({...form, fullName:e.target.value})} placeholder="John Doe" className={attempted && !form.fullName ? 'border-red-300' : ''} /></div>
             <div className="grid sm:grid-cols-2 gap-4">
               <div><label className="text-sm font-medium">Phone Number *</label><Input value={form.phone} onChange={e=>setForm({...form, phone:e.target.value})} placeholder="+263 ..." className={attempted && !form.phone ? 'border-red-300' : ''} /></div>
               <div><label className="text-sm font-medium">Email Address *</label><Input value={form.email} onChange={e=>setForm({...form, email:e.target.value})} className={attempted && !form.email ? 'border-red-300' : ''} /></div>
+            </div>
+            <div><label className="text-sm font-medium">Seller Type *</label>
+              <select value={form.sellerType} onChange={e=>setForm({...form, sellerType:e.target.value as any})} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                <option value="vendor">Individual Seller</option>
+                <option value="provider">Approved Tuck-food Provider</option>
+                <option value="parent">Community Member</option>
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">Choose the option that best describes you.</p>
             </div>
 
             <div className="pt-2">
