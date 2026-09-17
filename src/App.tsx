@@ -21,6 +21,10 @@ import Sports from "./pages/Sports";
 import SportDetail from "./pages/SportDetail";
 import Contact from "./pages/Contact";
 import Fees from "./pages/Fees";
+import Marketplace from "./pages/Marketplace";
+import MarketplaceRegister from "./pages/MarketplaceRegister";
+import MarketplaceDashboard from "./pages/MarketplaceDashboard";
+import MarketplaceRules from "./pages/MarketplaceRules";
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import Maintenance from "./pages/Maintenance";
@@ -92,6 +96,10 @@ const App = () => (
                 <Route path="/sports/:id" element={<SportDetail />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/fees" element={<Fees />} />
+                <Route path="/marketplace" element={<Marketplace />} />
+                <Route path="/marketplace/register" element={<MarketplaceRegister />} />
+                <Route path="/marketplace/dashboard" element={<MarketplaceDashboard />} />
+                <Route path="/marketplace/rules" element={<MarketplaceRules />} />
                 <Route path="/school-portal" element={<SchoolPortal />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/admin" element={<AdminDashboard />} />

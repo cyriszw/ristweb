@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
 import {
   Newspaper, Image, FileText, CalendarDays, Users, Trophy, Lightbulb,
-  MessageSquare, Settings, LogOut, Plus, Trash2, Pencil, Upload, X, BarChart3, DollarSign, GraduationCap, BookOpen, Shirt, Quote, Type
+  MessageSquare, Settings, LogOut, Plus, Trash2, Pencil, Upload, X, BarChart3, DollarSign, GraduationCap, BookOpen, Shirt, Quote, Type, ShoppingBag
 } from 'lucide-react';
 import AcademicsManager from '@/components/admin/AcademicsManager';
 import AdmissionsManager from '@/components/admin/AdmissionsManager';
@@ -23,8 +23,9 @@ import TestimonialsManager from '@/components/admin/TestimonialsManager';
 import SiteContentManager from '@/components/admin/SiteContentManager';
 import HomepageStatsManager from '@/components/admin/HomepageStatsManager';
 import SocialMediaManager from '@/components/admin/SocialMediaManager';
+import MarketplaceManager from '@/components/admin/MarketplaceManager';
 
-type Tab = 'visitors' | 'posts' | 'gallery' | 'files' | 'events' | 'clubs' | 'innovations' | 'sports' | 'messages' | 'fees' | 'uniforms' | 'stationery' | 'academics' | 'admissions' | 'subjects' | 'testimonials' | 'site_content' | 'homepage_stats' | 'social_media' | 'settings';
+type Tab = 'visitors' | 'posts' | 'gallery' | 'files' | 'events' | 'clubs' | 'innovations' | 'sports' | 'messages' | 'fees' | 'uniforms' | 'stationery' | 'academics' | 'admissions' | 'subjects' | 'testimonials' | 'site_content' | 'homepage_stats' | 'social_media' | 'marketplace' | 'settings';
 
 // Shared hook for image cropping before upload
 function useImageCrop() {
@@ -85,6 +86,7 @@ export default function AdminDashboard() {
     { key: 'site_content', label: 'Site Content', icon: Type },
     { key: 'homepage_stats', label: 'Homepage Stats', icon: BarChart3 },
     { key: 'social_media', label: 'Social Media', icon: Users },
+    { key: 'marketplace', label: 'Marketplace', icon: ShoppingBag },
     { key: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -150,6 +152,7 @@ export default function AdminDashboard() {
         <div className={tab === 'site_content' ? '' : 'hidden'}><SiteContentManager /></div>
         <div className={tab === 'homepage_stats' ? '' : 'hidden'}><HomepageStatsManager /></div>
         <div className={tab === 'social_media' ? '' : 'hidden'}><SocialMediaManager /></div>
+        <div className={tab === 'marketplace' ? '' : 'hidden'}><MarketplaceManager /></div>
         <div className={tab === 'settings' ? '' : 'hidden'}><SettingsManager /></div>
       </main>
     </div>
