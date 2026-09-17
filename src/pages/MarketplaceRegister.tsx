@@ -1,43 +1,97 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ShieldAlert, AlertTriangle, CheckCircle2, Store } from 'lucide-react';
+import { ShieldAlert, AlertTriangle, CheckCircle2, Store, Plus, X } from 'lucide-react';
 
 export default function MarketplaceRegister() {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const PRESET_PRODUCTS = [
+    'Unsweetened Powdered Milk',
+    'Mazoe Raspberry',
+    'Mazoe Blackberry',
+    'Mazoe Cream Soda',
+    'Potato Chips',
+    'Biscuits (Charhons or Proton)',
+    'Tomato Sauce',
+    'Peanut Butter',
+    'White Maputi',
+    'Cerevita',
+  ];
+
   const [form, setForm] = useState({
     fullName: '',
     phone: '',
     email: user?.email || '',
     sellerType: 'vendor' as 'parent'|'guardian'|'provider'|'vendor',
-    intendedItems: '',
     agreement: false,
   });
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [customItems, setCustomItems] = useState<string[]>([]);
+  const [newItem, setNewItem] = useState('');
   const [loading, setLoading] = useState(false);
   const [attempted, setAttempted] = useState(false);
 
   const [submitted, setSubmitted] = useState(false);
+  const togglePreset = (name: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+  const addCustom = () => {
+    const v = newItem.trim();
+    if (!v) return;
+    if (PRESET_PRODUCTS.includes(v)) {
+      toast.error('This item is already in the approved list — please select it above');
+      return;
+    }
+    if (customItems.includes(v)) {
+      toast.error('Already added');
+      return;
+    }
+    setCustomItems(prev => [...prev, v]);
+    setNewItem('');
+  };
+  const removeCustom = (idx: number) => setCustomItems(prev => prev.filter((_, i) => i !== idx));
+
   const submit = async () => {
     setAttempted(true);
-    if (!form.fullName || !form.phone || !form.email || !form.intendedItems || !form.agreement) {
-      toast.error('Please fill all required fields and agree to the rules');
+    const hasSelection = selected.size > 0 || customItems.length > 0;
+    if (!form.fullName || !form.phone || !form.email || !hasSelection || !form.agreement) {
+      toast.error('Please fill all required fields, select at least one item, and agree to the rules');
       return;
     }
     setLoading(true);
+    // Create pending product requests for custom items (not automatically approved)
+    for (const name of customItems) {
+      const { error: prodErr } = await supabase.from('marketplace_products' as any).insert([{
+        name,
+        category: 'Other Approved Items',
+        description: `Requested by seller ${form.fullName} (${form.email}) — pending school approval`,
+        is_approved: false,
+        is_prohibited: false,
+        enabled: false,
+      }]);
+      // Ignore duplicate name errors (already exists)
+      if (prodErr && !prodErr.message.includes('duplicate') && !prodErr.message.includes('already exists')) {
+        console.warn('product request failed', prodErr.message);
+      }
+    }
+    const intended = [...Array.from(selected), ...customItems.map(c => `${c} (Pending Approval)`)].join(', ');
     const { error } = await supabase.from('marketplace_sellers' as any).insert([{
       user_id: user ? user.id : null,
       full_name: form.fullName,
       phone: form.phone,
       email: form.email,
       seller_type: form.sellerType,
-      intended_items: form.intendedItems,
+      intended_items: intended,
       agreement: true,
       status: 'pending',
     }]);
@@ -135,18 +189,52 @@ export default function MarketplaceRegister() {
             </div>
 
             <div className="pt-2">
-              <h3 className="font-semibold text-sm">What will you sell? *</h3>
-              <p className="text-xs text-muted-foreground mb-1">List the specific products you intend to advertise. Must be from the approved list above.</p>
-              <Textarea value={form.intendedItems} onChange={e=>setForm({...form, intendedItems:e.target.value})} placeholder="e.g., Fruit (apples, bananas), Sandwiches, Exercise Books — all from approved list" rows={3} className={attempted && !form.intendedItems ? 'border-red-300' : ''} />
-              <p className="text-xs text-muted-foreground mt-1">If a product is not on the approved list, you must get school authorisation first (Rules §4).</p>
+              <h3 className="font-semibold text-sm">Items You Intend to Sell *</h3>
+              <div className="mt-2 rounded-lg border bg-muted/20 p-3">
+                <p className="text-xs font-semibold text-foreground">School-Approved Default Items</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">These items are part of the school's current approved Marketplace list. You may select the items you intend to sell. You may also request to add additional items for consideration by the school.</p>
+                <div className="mt-3 grid sm:grid-cols-2 gap-2">
+                  {PRESET_PRODUCTS.map(name => {
+                    const checked = selected.has(name);
+                    return (
+                      <label key={name} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer transition-colors ${checked ? 'bg-primary text-primary-foreground border-primary' : 'bg-card hover:bg-muted border-border'}`}>
+                        <input type="checkbox" checked={checked} onChange={()=>togglePreset(name)} className="w-4 h-4 accent-primary" />
+                        <span className="flex-1">{name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <div className="flex items-center gap-2">
+                  <Input placeholder="Add another item not on the list (e.g., Fresh Eggs)" value={newItem} onChange={e=>setNewItem(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault(); addCustom();}}} />
+                  <Button type="button" variant="outline" onClick={addCustom} className="shrink-0"><Plus className="w-4 h-4 mr-1" /> Add Another Item</Button>
+                </div>
+                {customItems.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {customItems.map((c, idx) => (
+                      <div key={idx} className="flex items-center justify-between px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 text-sm">
+                        <span>{c} <span className="text-xs text-amber-700 font-medium">— Pending School Approval</span></span>
+                        <button type="button" onClick={()=>removeCustom(idx)} className="p-1 rounded hover:bg-amber-100"><X className="w-4 h-4 text-amber-700" /></button>
+                      </div>
+                    ))}
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <p className="text-xs text-amber-800 leading-relaxed"><span className="font-semibold">Additional Item Requires Approval</span> — Items outside the school's default approved list must be reviewed and approved by the school before they can be advertised or sold through the Marketplace.</p>
+                    </div>
+                  </div>
+                )}
+                {(attempted && selected.size===0 && customItems.length===0) && <p className="text-xs text-red-600 mt-2">Select at least one approved item or add another item.</p>}
+              </div>
             </div>
 
-            {/* Agreement with strong emphasis */}
+            {/* Agreement - new product approval wording */}
             <label className={`flex gap-3 p-4 rounded-xl border-2 transition-colors ${attempted && !form.agreement ? 'border-red-300 bg-red-50' : form.agreement ? 'border-green-300 bg-green-50' : 'border-amber-200 bg-amber-50/50'}`}>
               <input type="checkbox" checked={form.agreement} onChange={e=>setForm({...form, agreement:e.target.checked})} className="mt-1 w-4 h-4 accent-primary" />
               <span className="text-sm leading-relaxed">
-                <span className="font-semibold flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 text-amber-600" /> I agree to the School Marketplace Rules</span>
-                I confirm my information is accurate. I agree to follow the School Marketplace Rules and <span className="font-semibold">only advertise products approved by the school</span>. I understand that <span className="font-bold text-red-700">prohibited or illegal items are not permitted</span> and that violations — including advertising items not on the school list — may result in <span className="font-bold text-red-700">removal of listings, immediate suspension of my account or permanent termination</span> of my Marketplace access (Rules §14).
+                <span className="font-semibold flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 text-amber-600" /> I agree to the Marketplace Rules and product approval requirements</span>
+                I understand that the items displayed in the School-Approved Default Items list are the school's current approved products. I may request additional items, but those items require school approval before they can be advertised. I agree to follow all Marketplace Rules and understand that <span className="font-bold text-red-700">prohibited or illegal items may result in my listing being removed and my account being suspended.</span>
               </span>
             </label>
             {!form.agreement && attempted && <p className="text-xs text-red-600 -mt-2">You must agree to the rules to register.</p>}
