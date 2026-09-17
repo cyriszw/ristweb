@@ -29,6 +29,7 @@ dist-ssr
 TOKENS.txt
 TOKENS*
 *.env
+!.env.example
 
 # Migration temp files (contain keys)
 migrate*.mjs
