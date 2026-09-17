@@ -26,16 +26,16 @@ export default function MarketplaceRegister() {
   const [loading, setLoading] = useState(false);
   const [attempted, setAttempted] = useState(false);
 
+  const [submitted, setSubmitted] = useState(false);
   const submit = async () => {
     setAttempted(true);
-    if (!user) { toast.error('Please log in to register as a seller'); navigate('/login'); return; }
     if (!form.fullName || !form.phone || !form.email || !form.intendedItems || !form.agreement) {
       toast.error('Please fill all required fields and agree to the rules');
       return;
     }
     setLoading(true);
     const { error } = await supabase.from('marketplace_sellers' as any).insert([{
-      user_id: user.id,
+      user_id: user ? user.id : null,
       full_name: form.fullName,
       provider_name: form.providerName || null,
       student_name: form.studentName || null,
@@ -53,17 +53,30 @@ export default function MarketplaceRegister() {
       else toast.error(error.message);
       return;
     }
+    setSubmitted(true);
     toast.success('Registration submitted — pending admin approval');
-    navigate('/marketplace/dashboard');
   };
 
-  if (!user) {
+  if (submitted) {
     return (
       <Layout>
-        <div className="container py-16 text-center">
-          <h1 className="font-display text-2xl font-bold">Register as a Seller</h1>
-          <p className="text-muted-foreground mt-2">You need to log in first.</p>
-          <Link to="/login" className="inline-flex mt-6 rounded-full bg-primary text-primary-foreground px-6 py-2.5 text-sm font-medium">Go to Login</Link>
+        <section className="bg-primary py-10">
+          <div className="container max-w-3xl">
+            <p className="text-xs tracking-[0.2em] text-white/70 uppercase flex items-center gap-2"><Store className="w-4 h-4" /> Marketplace</p>
+            <h1 className="mt-2 font-display text-3xl font-bold text-white">Application Received</h1>
+          </div>
+        </section>
+        <div className="container max-w-3xl py-12">
+          <div className="bg-card border rounded-xl p-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto"><CheckCircle2 className="w-8 h-8 text-green-600" /></div>
+            <h2 className="mt-4 font-display text-xl font-bold">Thank you — your application is pending</h2>
+            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">Your seller registration has been submitted successfully. An administrator will review your information and verify it before approving your account. You will be notified by email/phone once approved. You cannot publish listings until approved.</p>
+            <div className="mt-6 flex gap-3 justify-center">
+              <Link to="/marketplace" className="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground px-6 py-2.5 text-sm font-medium">Back to Marketplace</Link>
+              <Link to="/marketplace/rules" className="inline-flex items-center justify-center rounded-full border px-6 py-2.5 text-sm font-medium">View Rules</Link>
+            </div>
+            {!user && <p className="text-xs text-muted-foreground mt-4">Tip: <Link to="/login" className="text-primary underline">Create an account / log in</Link> with the same email ({form.email}) to manage your listings after approval.</p>}
+          </div>
         </div>
       </Layout>
     );
