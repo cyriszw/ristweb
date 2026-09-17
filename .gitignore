@@ -22,3 +22,21 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase & Env - NEVER commit secrets
+.env
+.env.local
+TOKENS.txt
+TOKENS*
+*.env
+
+# Migration temp files (contain keys)
+migrate*.mjs
+*push*.mjs
+test_*.mjs
+verify_*.mjs
+MANUAL_MIGRATION.sql
+
+# Backups - do not commit large media backups
+MEDIA/
+
