@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { ShieldAlert, AlertTriangle, CheckCircle2, Store } from 'lucide-react';
 
 export default function MarketplaceRegister() {
   const { user } = useAuth();
@@ -23,8 +24,10 @@ export default function MarketplaceRegister() {
     agreement: false,
   });
   const [loading, setLoading] = useState(false);
+  const [attempted, setAttempted] = useState(false);
 
   const submit = async () => {
+    setAttempted(true);
     if (!user) { toast.error('Please log in to register as a seller'); navigate('/login'); return; }
     if (!form.fullName || !form.phone || !form.email || !form.intendedItems || !form.agreement) {
       toast.error('Please fill all required fields and agree to the rules');
@@ -70,16 +73,48 @@ export default function MarketplaceRegister() {
     <Layout>
       <section className="bg-primary py-10">
         <div className="container max-w-3xl">
-          <p className="text-xs tracking-[0.2em] text-white/70 uppercase">Marketplace</p>
+          <p className="text-xs tracking-[0.2em] text-white/70 uppercase flex items-center gap-2"><Store className="w-4 h-4" /> Marketplace</p>
           <h1 className="mt-2 font-display text-3xl font-bold text-white">Register as a Seller</h1>
-          <p className="mt-2 text-white/80 text-sm">Parents/guardians and approved tuck-food providers may register to advertise permitted items.</p>
+          <p className="mt-2 text-white/80 text-sm">Join our school-approved marketplace. All applications are reviewed by administration before you can publish listings.</p>
         </div>
       </section>
+
       <section className="py-8">
         <div className="container max-w-3xl">
-          <div className="bg-card border rounded-xl p-6 space-y-4">
+          {/* Suspension warning */}
+          <div className="mb-6 rounded-xl border-2 border-red-200 bg-red-50 p-4 flex gap-3">
+            <div className="shrink-0 mt-0.5">
+              <ShieldAlert className="w-6 h-6 text-red-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-red-800 text-sm">Important — Zero Tolerance for Prohibited Items</p>
+              <p className="text-sm text-red-700 mt-1 leading-relaxed">
+                You may <span className="font-semibold underline">only</span> advertise products that appear on the school's <span className="font-semibold">Approved Marketplace Product List</span>. 
+                Advertising <span className="font-bold">prohibited, illegal or non-approved items</span> — including alcohol, drugs, tobacco/vapes, weapons, stolen or counterfeit goods, or any food/drink banned by the school — will lead to <span className="font-bold">immediate suspension of your account and removal of your listings</span> in accordance with Marketplace Rules §5 and §14. Repeated or serious violations may result in a permanent ban.
+              </p>
+              <Link to="/marketplace/rules" className="inline-flex mt-2 text-xs font-medium text-red-700 underline underline-offset-4 hover:text-red-800">Read full Marketplace Rules →</Link>
+            </div>
+          </div>
+
+          {/* Approved list hint */}
+          <div className="mb-6 rounded-xl border bg-card p-4">
+            <p className="text-sm font-semibold flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-600" /> Only these categories are allowed</p>
+            <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
+              {['Food & Snacks','Drinks','School Supplies','Clothing & Uniform Items','Other Approved Items'].map(c=>(
+                <span key={c} className="px-2.5 py-1 rounded-full bg-green-50 border border-green-200 text-green-800 font-medium">{c}</span>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">Examples: Sandwiches, Fruit, Baked goods, Fruit Juice, Water, Exercise Books, Pens, School Shirt/Tie etc. The exact list is controlled by the school admin. <Link to="/marketplace" className="text-primary underline">Browse approved products</Link>.</p>
+          </div>
+
+          <div className="bg-card border rounded-xl p-6 space-y-5">
+            <div>
+              <h2 className="font-semibold text-sm">Your Details</h2>
+              <p className="text-xs text-muted-foreground">Tell us who you are. Fields marked * are required.</p>
+            </div>
+
             <div className="grid sm:grid-cols-2 gap-4">
-              <div><label className="text-sm font-medium">Full Name *</label><Input value={form.fullName} onChange={e=>setForm({...form, fullName:e.target.value})} placeholder="John Doe" /></div>
+              <div><label className="text-sm font-medium">Full Name *</label><Input value={form.fullName} onChange={e=>setForm({...form, fullName:e.target.value})} placeholder="John Doe" className={attempted && !form.fullName ? 'border-red-300' : ''} /></div>
               <div><label className="text-sm font-medium">Seller Type *</label>
                 <select value={form.sellerType} onChange={e=>setForm({...form, sellerType:e.target.value as any})} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                   <option value="parent">Parent</option>
@@ -91,25 +126,38 @@ export default function MarketplaceRegister() {
             </div>
             <div><label className="text-sm font-medium">Parent/Guardian or Provider Name</label><Input value={form.providerName} onChange={e=>setForm({...form, providerName:e.target.value})} placeholder="If different from above" /></div>
             <div className="grid sm:grid-cols-2 gap-4">
-              <div><label className="text-sm font-medium">Student Name (if applicable)</label><Input value={form.studentName} onChange={e=>setForm({...form, studentName:e.target.value})} /></div>
-              <div><label className="text-sm font-medium">Student ID / Registration Number</label><Input value={form.studentId} onChange={e=>setForm({...form, studentId:e.target.value})} /></div>
+              <div><label className="text-sm font-medium">Student Name (if applicable)</label><Input value={form.studentName} onChange={e=>setForm({...form, studentName:e.target.value})} placeholder="e.g., Tariro Moyo" /></div>
+              <div><label className="text-sm font-medium">Student ID / Registration Number</label><Input value={form.studentId} onChange={e=>setForm({...form, studentId:e.target.value})} placeholder="e.g., MBH/2024/123" /></div>
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
-              <div><label className="text-sm font-medium">Phone Number *</label><Input value={form.phone} onChange={e=>setForm({...form, phone:e.target.value})} placeholder="+263 ..." /></div>
-              <div><label className="text-sm font-medium">Email Address *</label><Input value={form.email} onChange={e=>setForm({...form, email:e.target.value})} /></div>
+              <div><label className="text-sm font-medium">Phone Number *</label><Input value={form.phone} onChange={e=>setForm({...form, phone:e.target.value})} placeholder="+263 ..." className={attempted && !form.phone ? 'border-red-300' : ''} /></div>
+              <div><label className="text-sm font-medium">Email Address *</label><Input value={form.email} onChange={e=>setForm({...form, email:e.target.value})} className={attempted && !form.email ? 'border-red-300' : ''} /></div>
             </div>
-            <div><label className="text-sm font-medium">Items they intend to sell *</label><Textarea value={form.intendedItems} onChange={e=>setForm({...form, intendedItems:e.target.value})} placeholder="e.g., Fruit, sandwiches, exercise books (must be from approved list)" rows={3} /></div>
-            <label className="flex gap-3 p-4 border rounded-lg bg-muted/30">
-              <input type="checkbox" checked={form.agreement} onChange={e=>setForm({...form, agreement:e.target.checked})} className="mt-1" />
-              <span className="text-sm leading-relaxed">I agree to follow the school's Marketplace Rules and only advertise items permitted by the school. I understand that advertising prohibited or illegal items may result in immediate suspension of my account and removal of my listings.</span>
+
+            <div className="pt-2">
+              <h3 className="font-semibold text-sm">What will you sell? *</h3>
+              <p className="text-xs text-muted-foreground mb-1">List the specific products you intend to advertise. Must be from the approved list above.</p>
+              <Textarea value={form.intendedItems} onChange={e=>setForm({...form, intendedItems:e.target.value})} placeholder="e.g., Fruit (apples, bananas), Sandwiches, Exercise Books — all from approved list" rows={3} className={attempted && !form.intendedItems ? 'border-red-300' : ''} />
+              <p className="text-xs text-muted-foreground mt-1">If a product is not on the approved list, you must get school authorisation first (Rules §4).</p>
+            </div>
+
+            {/* Agreement with strong emphasis */}
+            <label className={`flex gap-3 p-4 rounded-xl border-2 transition-colors ${attempted && !form.agreement ? 'border-red-300 bg-red-50' : form.agreement ? 'border-green-300 bg-green-50' : 'border-amber-200 bg-amber-50/50'}`}>
+              <input type="checkbox" checked={form.agreement} onChange={e=>setForm({...form, agreement:e.target.checked})} className="mt-1 w-4 h-4 accent-primary" />
+              <span className="text-sm leading-relaxed">
+                <span className="font-semibold flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 text-amber-600" /> I agree to the School Marketplace Rules</span>
+                I confirm my information is accurate. I agree to follow the School Marketplace Rules and <span className="font-semibold">only advertise products approved by the school</span>. I understand that <span className="font-bold text-red-700">prohibited or illegal items are not permitted</span> and that violations — including advertising items not on the school list — may result in <span className="font-bold text-red-700">removal of listings, immediate suspension of my account or permanent termination</span> of my Marketplace access (Rules §14).
+              </span>
             </label>
-            <div className="flex gap-3">
-              <Button onClick={submit} disabled={loading}>{loading?'Submitting...':'Submit for Approval'}</Button>
+            {!form.agreement && attempted && <p className="text-xs text-red-600 -mt-2">You must agree to the rules to register.</p>}
+
+            <div className="flex gap-3 pt-2">
+              <Button onClick={submit} disabled={loading} className="min-w-[170px]">{loading?'Submitting...':'Submit for Approval'}</Button>
               <Link to="/marketplace" className="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm">Cancel</Link>
             </div>
-            <p className="text-xs text-muted-foreground">Your registration will be <span className="font-medium text-foreground">Pending Approval</span>. An administrator must approve you before you can publish listings.</p>
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5"><ShieldAlert className="w-3.5 h-3.5" /> Your registration will be <span className="font-medium text-foreground">Pending Approval</span>. An administrator must approve you before you can publish listings. You will be notified.</p>
           </div>
-          <p className="mt-4 text-center text-sm"><Link to="/marketplace/rules" className="text-primary underline">View Marketplace Rules</Link></p>
+          <p className="mt-4 text-center text-sm"><Link to="/marketplace/rules" className="text-primary underline font-medium">View full Marketplace Rules & Seller Agreement</Link></p>
         </div>
       </section>
     </Layout>
